@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:stacked_services/stacked_services.dart';
-import 'package:todo/app/app.locator.dart';
-import 'package:todo/app/app.router.dart';
-import 'package:todo/common/constants/theme.dart';
-import 'package:todo/core/models/todo_item.dart';
+
+import '../../app/app.locator.dart';
+import '../../app/app.router.dart';
+import '../../common/constants/theme.dart';
+import '../../core/models/todo_item.dart';
 
 Future<void> main() async {
   // Hive Storage

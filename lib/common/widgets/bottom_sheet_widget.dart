@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -17,7 +15,7 @@ class BottomSheetWidget extends StatelessWidget {
       children: [
         Container(
           decoration: const BoxDecoration(
-            color: Color(0xFFF8F8F8),
+            color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.all(24),
@@ -35,10 +33,7 @@ class BottomSheetWidget extends StatelessWidget {
     Get.bottomSheet(
       elevation: 0,
       isScrollControlled: true,
-      BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-        child: BottomSheetWidget(widget: content),
-      ),
+      BottomSheetWidget(widget: content),
     );
   }
 }
