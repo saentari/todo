@@ -7,7 +7,7 @@ import '../../ui/home/home_view.dart';
 
 @StackedApp(
   routes: [
-    CustomRoute(page: HomeView, transitionsBuilder: TransitionsBuilders.fadeIn),
+    CustomRoute(page: HomeView, transitionsBuilder: TransitionsBuilders.noTransition),
   ],
   dependencies: [
     LazySingleton(classType: StorageService),

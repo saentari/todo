@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
-import 'package:todo/common/widgets/bottom_sheet_widget.dart';
 
+import '../../common/widgets/bottom_sheet_widget.dart';
 import '../../common/widgets/dashed_divider.dart';
 import '../../core/models/todo_item.dart';
 import 'home_viewmodel.dart';
@@ -12,16 +12,9 @@ class HomeView extends StackedView<HomeViewModel> {
   @override
   Widget builder(BuildContext context, HomeViewModel viewModel, Widget? child) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('todo', style: TextStyle(fontSize: 24)),
+        title: Text(viewModel.titleText, style: const TextStyle(fontSize: 24)),
         automaticallyImplyLeading: false,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 80,
-        shadowColor: Colors.black,
-        backgroundColor: Colors.white,
-        shape: Border(bottom: BorderSide(color: Colors.black.withOpacity(0.1), width: 1)),
       ),
       body: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -32,9 +25,18 @@ class HomeView extends StackedView<HomeViewModel> {
             title: Text(
               item.description,
               style: TextStyle(
-                  fontSize: 16, decoration: item.isComplete ? TextDecoration.lineThrough : TextDecoration.none),
+                fontSize: 16,
+                decoration: item.isComplete ? TextDecoration.lineThrough : TextDecoration.none,
+              ),
             ),
-            onChanged: (bool? value) => viewModel.toggleIsCompleted(index: index, value: !item.isComplete),
+            onChanged: (value) => BottomSheetWidget.showBottomSheet(
+              content: BottomSheetDataEdit(
+                item: item,
+                toggleItemFunction: () => viewModel.toggleIsCompleted(index: index, value: !item.isComplete),
+                editItemFunction: (description) => viewModel.updateItem(description: description, index: index),
+                deleteItemFunction: () => viewModel.deleteItem(index: index),
+              ),
+            ),
             value: item.isComplete,
             controlAffinity: ListTileControlAffinity.leading,
             activeColor: Colors.black,
@@ -45,14 +47,10 @@ class HomeView extends StackedView<HomeViewModel> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.black,
-        elevation: 1,
         onPressed: () => BottomSheetWidget.showBottomSheet(
-          content: BottomSheetData(
-            addItemFunction: (description) => viewModel.addItem(description: description),
-          ),
-        ),
-        shape: const CircleBorder(),
+            content: BottomSheetDataAdd(
+          addItemFunction: (description) => viewModel.addItem(description: description),
+        )),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
@@ -66,16 +64,16 @@ class HomeView extends StackedView<HomeViewModel> {
   void onViewModelReady(HomeViewModel viewModel) => viewModel.initialise();
 }
 
-class BottomSheetData extends StatefulWidget {
-  const BottomSheetData({super.key, required this.addItemFunction});
+class BottomSheetDataAdd extends StatefulWidget {
+  const BottomSheetDataAdd({super.key, required this.addItemFunction});
 
   final Function(String) addItemFunction;
 
   @override
-  BottomSheetDataState createState() => BottomSheetDataState();
+  BottomSheetDataAddState createState() => BottomSheetDataAddState();
 }
 
-class BottomSheetDataState extends State<BottomSheetData> {
+class BottomSheetDataAddState extends State<BottomSheetDataAdd> {
   final _formKey = GlobalKey<FormState>();
   String name = '';
 
@@ -87,59 +85,208 @@ class BottomSheetDataState extends State<BottomSheetData> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextFormField(
-            decoration: InputDecoration(
-              hintText: 'Description',
-              filled: true,
-              fillColor: Colors.white,
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: const BorderSide(color: Color(0xFFD7D7D7)),
-              ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: const BorderSide(color: Color(0xFFD7D7D7)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: const BorderSide(color: Color(0xFFD7D7D7)),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: const BorderSide(color: Color(0xFFBE5151)),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: const BorderSide(color: Color(0xFFBE5151)),
-              ),
-            ),
+            decoration: const InputDecoration(hintText: 'Description'),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'No description found';
+                return 'No description was found';
               }
               return null;
             },
-            onChanged: (value) => setState(() => name = value),
+            onChanged: (value) => name = value,
           ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  widget.addItemFunction(name);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BottomSheetDataEdit extends StatefulWidget {
+  const BottomSheetDataEdit({
+    super.key,
+    required this.item,
+    required this.toggleItemFunction,
+    required this.editItemFunction,
+    required this.deleteItemFunction,
+  });
+
+  final TodoItem item;
+  final Function() toggleItemFunction;
+  final Function(String) editItemFunction;
+  final Function() deleteItemFunction;
+
+  @override
+  BottomSheetDataEditState createState() => BottomSheetDataEditState();
+}
+
+class BottomSheetDataEditState extends State<BottomSheetDataEdit> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  TodoItem? _todoItem;
+  String _mainButtonText = '';
+  String _newDescription = '';
+  bool _isChanged = false;
+  String _secondaryButtonText = 'Give up';
+
+  @override
+  void initState() {
+    _todoItem = widget.item;
+    _controller.text = _todoItem!.description;
+    if (_todoItem?.isComplete == false) {
+      _mainButtonText = 'Complete';
+    } else {
+      _mainButtonText = 'Open';
+    }
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            controller: _controller,
+            decoration: const InputDecoration(hintText: 'Description'),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'No description was found';
+              }
+              return null;
+            },
+            onChanged: (value) {
+              if (value != _todoItem?.description) {
+                setState(() {
+                  _isChanged = true;
+                  _newDescription = value;
+                  _mainButtonText = 'Save';
+                  _secondaryButtonText = 'Cancel';
+                });
+              } else {
+                setState(() {
+                  _isChanged = false;
+                  _newDescription = value;
+                  _mainButtonText =
+                      _todoItem?.isComplete == false ? _mainButtonText = 'Complete' : _mainButtonText = 'Open';
+                  _secondaryButtonText = 'Give up';
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              InkWell(
-                onTap: () {
-                  if (_formKey.currentState!.validate()) {
-                    widget.addItemFunction(name);
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    if (_isChanged) {
+                      _controller.text = widget.item.description;
+                    } else {
+                      Navigator.pop(context);
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return Dialog(
+                            child: Container(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  const Text(
+                                    'Giving up?',
+                                    style: TextStyle(fontSize: 20.0),
+                                  ),
+                                  const SizedBox(height: 16.0),
+                                  const Text(
+                                    'This will delete the item.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: TextButton(
+                                          onPressed: () => Navigator.of(context).pop(),
+                                          style: TextButtonTheme.of(context).style?.copyWith(
+                                                backgroundColor: const MaterialStatePropertyAll(Color(0xFFFFFFFF)),
+                                                foregroundColor: const MaterialStatePropertyAll(Color(0xFF000000)),
+                                                shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                                                  side: const BorderSide(color: Color(0xFFD7D7D7)),
+                                                  borderRadius: BorderRadius.circular(10.0),
+                                                )),
+                                              ),
+                                          child: const Text('Never'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                            widget.deleteItemFunction();
+                                          },
+                                          child: const Text('Yes'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                  },
+                  style: TextButtonTheme.of(context).style?.copyWith(
+                        backgroundColor: const MaterialStatePropertyAll(Color(0xFFFFFFFF)),
+                        foregroundColor: const MaterialStatePropertyAll(Color(0xFF000000)),
+                        shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                          side: const BorderSide(color: Color(0xFFD7D7D7)),
+                          borderRadius: BorderRadius.circular(10.0),
+                        )),
+                      ),
+                  child: Text(_secondaryButtonText),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    if (_isChanged) {
+                      widget.editItemFunction(_newDescription);
+                    } else {
+                      widget.toggleItemFunction();
+                    }
                     Navigator.pop(context);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Save',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  },
+                  child: Text(_mainButtonText),
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );

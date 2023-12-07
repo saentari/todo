@@ -14,6 +14,8 @@ class HomeViewModel extends ReactiveViewModel {
   final _descriptionController = TextEditingController();
   final _storageService = StorageService();
 
+  String titleText = 'todo';
+
   get items => _storageService.getFromBox('items');
 
   void initialise() {
@@ -42,7 +44,7 @@ class HomeViewModel extends ReactiveViewModel {
     notifyListeners();
   }
 
-  void deleteContract({required int index}) {
+  void deleteItem({required int index}) {
     _storageService.deleteFromBox('items', index);
     notifyListeners();
   }
